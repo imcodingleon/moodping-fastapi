@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MoodPing - 감정 기록</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <div class="container waterfall-container">
+        <header>
+            <h2>오늘의 기분은? 🌙</h2>
+        </header>
+
+        <!-- Section 1: 이모지 선택 (항상 활성) -->
+        <section id="section-emoji" class="active-section">
+            <h3>어떤 감정인가요?</h3>
+            <div class="emoji-grid">
+                <div class="emoji-btn" data-emoji="😊"><span>기쁨</span></div>
+                <div class="emoji-btn" data-emoji="😢"><span>슬픔</span></div>
+                <div class="emoji-btn" data-emoji="😡"><span>분노</span></div>
+                <div class="emoji-btn" data-emoji="😰"><span>불안</span></div>
+                <div class="emoji-btn" data-emoji="😌"><span>평온</span></div>
+                <div class="emoji-btn" data-emoji="😐"><span>무감각</span></div>
+            </div>
+        </section>
+
+        <!-- Section 2: 강도 선택 (0~10) -->
+        <section id="section-intensity" class="disabled-section">
+            <h3>얼마나 강하게 느껴지나요?</h3>
+            <p style="font-size:12px;color:#999;margin-top:-8px">0(전혀 없음) ~ 10(매우 강함)</p>
+            <div class="intensity-options">
+                <div class="intensity-btn" data-value="0">0</div>
+                <div class="intensity-btn" data-value="1">1</div>
+                <div class="intensity-btn" data-value="2">2</div>
+                <div class="intensity-btn" data-value="3">3</div>
+                <div class="intensity-btn" data-value="4">4</div>
+                <div class="intensity-btn" data-value="5">5</div>
+                <div class="intensity-btn" data-value="6">6</div>
+                <div class="intensity-btn" data-value="7">7</div>
+                <div class="intensity-btn" data-value="8">8</div>
+                <div class="intensity-btn" data-value="9">9</div>
+                <div class="intensity-btn" data-value="10">10</div>
+            </div>
+        </section>
+
+        <!-- Section 3: 메모 & 저장 -->
+        <section id="section-note" class="disabled-section">
+            <h3>하고 싶은 말이 있나요? <span style="font-size:14px;font-weight:normal;color:#999">(선택)</span></h3>
+            <textarea id="note-input" rows="3" maxlength="500"
+                      placeholder="짧게 남겨주셔도 좋아요. (최대 500자)"></textarea>
+            <button id="submit-btn" class="btn-primary">AI 마음 분석받기 ✨</button>
+        </section>
+
+        <!-- Section 4: 분석 결과 -->
+        <section id="section-result">
+            <div class="result-card">
+                <div class="loading-spinner" id="loading-spinner">
+                    <div class="spinner"></div>
+                    <p>AI가 마음을 읽고 있습니다...</p>
+                </div>
+                <div id="result-content" style="display: none;">
+                    <h3>AI의 마음 편지 💌</h3>
+                    <p id="feedback-text" style="line-height:1.8;color:#2c3e50"></p>
+                    <button id="confirm-btn" class="btn-secondary">확인 완료</button>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <script src="/js/common.js"></script>
+    <script src="/js/record.js"></script>
+</body>
+</html>

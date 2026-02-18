@@ -1,0 +1,177 @@
+"""
+디버그 대시보드용 집계 서비스.
+Spring Boot DebugService의 Native SQL을 SQLAlchemy text()로 이식했습니다.
+퍼널 이탈 임계값: 10분 (DROP_THRESHOLD_MINUTES)
+7일 리텐션 기준: RETENTION_DAYS
+"""
+import logging
+from sqlalchemy.orm import Session
+from sqlalchemy import text
+
+logger = logging.getLogger(__name__)
+
+DROP_THRESHOLD_MINUTES = 10
+RETENTION_DAYS = 7
+
+
+def get_recent_records(db: Session) -> list[dict]:
+    """최근 감정 기록 10건을 mood_analysis와 JOIN하여 반환합니다."""
+    sql = text("""
+        SELECT
+            mr.id          AS record_id,
+            mr.anon_id     AS anon_id,
+            mr.user_id     AS user_id,
+            mr.mood_emoji  AS emoji,
+            mr.intensity   AS intensity,
+            mr.mood_text   AS mood_text,
+            ma.analysis_text AS analysis_text,
+            mr.recorded_at AS recorded_at
+        FROM mood_record mr
+        LEFT JOIN mood_analysis ma ON ma.record_id = mr.id
+        ORDER BY mr.recorded_at DESC
+        LIMIT 10
+    """)
+    rows = db.execute(sql).mappings().all()
+    return [
+        {
+            "record_id":     row["record_id"],
+            "anon_id":       row["anon_id"],
+            "user_id":       row["user_id"],
+            "emoji":         row["emoji"],
+            "intensity":     row["intensity"],
+            "mood_text":     row["mood_text"],
+            "analysis_text": row["analysis_text"],
+            "recorded_at":   str(row["recorded_at"]) if row["recorded_at"] else None,
+        }
+        for row in rows
+    ]
+
+
+def get_metrics(db: Session) -> dict:
+    """퍼널 지표 + 7일 리텐션을 반환합니다."""
+    return {
+        "drop_threshold_minutes": DROP_THRESHOLD_MINUTES,
+        "funnel": {
+            "record_funnel":   _record_funnel(db),
+            "analysis_funnel": _analysis_funnel(db),
+        },
+        "retention": _retention(db),
+    }
+
+
+def _record_funnel(db: Session) -> dict:
+    """[기록 퍼널] record_start_click → record_complete (10분 임계값)"""
+    sql = text("""
+        SELECT
+            COUNT(DISTINCT s.session_id)                           AS record_start_count,
+            COUNT(DISTINCT c.session_id)                           AS record_complete_count,
+            ROUND(
+                CASE WHEN COUNT(DISTINCT s.session_id) = 0 THEN 0
+                     ELSE 1.0 - COUNT(DISTINCT c.session_id) * 1.0
+                              / COUNT(DISTINCT s.session_id)
+                END, 4
+            )                                                      AS record_drop_rate,
+            ROUND(
+                COALESCE(
+                    AVG(CASE WHEN c.session_id IS NOT NULL
+                             THEN TIMESTAMPDIFF(SECOND, s.occurred_at, c.occurred_at)
+                        END) / 60.0,
+                0), 2
+            )                                                      AS avg_record_duration_minutes
+        FROM event_log s
+        LEFT JOIN event_log c
+            ON  s.session_id  = c.session_id
+            AND c.event_name  = 'record_complete'
+            AND TIMESTAMPDIFF(MINUTE, s.occurred_at, c.occurred_at) BETWEEN 0 AND :threshold
+        WHERE s.event_name = 'record_start_click'
+    """)
+    row = db.execute(sql, {"threshold": DROP_THRESHOLD_MINUTES}).mappings().first()
+    return _safe_funnel_row(row, "record_start_count", "record_complete_count",
+                            "record_drop_rate", "avg_record_duration_minutes")
+
+
+def _analysis_funnel(db: Session) -> dict:
+    """[분석 퍼널] record_complete → analysis_view (10분 임계값)"""
+    sql = text("""
+        SELECT
+            COUNT(DISTINCT rc.session_id)                          AS record_complete_count,
+            COUNT(DISTINCT av.session_id)                          AS analysis_view_count,
+            ROUND(
+                CASE WHEN COUNT(DISTINCT rc.session_id) = 0 THEN 0
+                     ELSE 1.0 - COUNT(DISTINCT av.session_id) * 1.0
+                              / COUNT(DISTINCT rc.session_id)
+                END, 4
+            )                                                      AS analysis_drop_rate,
+            ROUND(
+                COALESCE(
+                    AVG(CASE WHEN av.session_id IS NOT NULL
+                             THEN TIMESTAMPDIFF(SECOND, rc.occurred_at, av.occurred_at)
+                        END) / 60.0,
+                0), 2
+            )                                                      AS avg_analysis_duration_minutes
+        FROM event_log rc
+        LEFT JOIN event_log av
+            ON  rc.session_id = av.session_id
+            AND av.event_name = 'analysis_view'
+            AND TIMESTAMPDIFF(MINUTE, rc.occurred_at, av.occurred_at) BETWEEN 0 AND :threshold
+        WHERE rc.event_name = 'record_complete'
+    """)
+    row = db.execute(sql, {"threshold": DROP_THRESHOLD_MINUTES}).mappings().first()
+    return _safe_funnel_row(row, "record_complete_count", "analysis_view_count",
+                            "analysis_drop_rate", "avg_analysis_duration_minutes")
+
+
+def _retention(db: Session) -> dict:
+    """[7일 리텐션] analysis_view 기준 Day-7 재방문율"""
+    sql = text("""
+        SELECT
+            COUNT(DISTINCT fv.identifier)                          AS total_users,
+            COUNT(DISTINCT rv.identifier)                          AS retained_users,
+            ROUND(
+                CASE WHEN COUNT(DISTINCT fv.identifier) = 0 THEN 0
+                     ELSE COUNT(DISTINCT rv.identifier) * 100.0
+                          / COUNT(DISTINCT fv.identifier)
+                END, 2
+            )                                                      AS retention_rate_percent
+        FROM (
+            SELECT
+                COALESCE(user_id, anon_id) AS identifier,
+                MIN(occurred_at)           AS first_view_at
+            FROM event_log
+            WHERE event_name = 'analysis_view'
+              AND COALESCE(user_id, anon_id) IS NOT NULL
+            GROUP BY COALESCE(user_id, anon_id)
+        ) fv
+        LEFT JOIN (
+            SELECT
+                COALESCE(user_id, anon_id) AS identifier,
+                occurred_at
+            FROM event_log
+            WHERE event_name = 'analysis_view'
+              AND COALESCE(user_id, anon_id) IS NOT NULL
+        ) rv
+            ON  fv.identifier = rv.identifier
+            AND rv.occurred_at > fv.first_view_at
+            AND DATEDIFF(rv.occurred_at, fv.first_view_at) <= :days
+    """)
+    row = db.execute(sql, {"days": RETENTION_DAYS}).mappings().first()
+    if not row:
+        return {"total_users": 0, "retained_users": 0, "retention_rate_percent": 0.0,
+                "retention_window_days": RETENTION_DAYS}
+    return {
+        "total_users":            int(row["total_users"] or 0),
+        "retained_users":         int(row["retained_users"] or 0),
+        "retention_rate_percent": float(row["retention_rate_percent"] or 0.0),
+        "retention_window_days":  RETENTION_DAYS,
+    }
+
+
+def _safe_funnel_row(row, k0: str, k1: str, k2: str, k3: str) -> dict:
+    if not row:
+        return {k0: 0, k1: 0, k2: 0.0, k3: 0.0}
+    return {
+        k0: int(row[k0] or 0),
+        k1: int(row[k1] or 0),
+        k2: float(row[k2] or 0.0),
+        k3: float(row[k3] or 0.0),
+    }
