@@ -190,13 +190,15 @@ STEP_LABELS = {
 
 def _step_funnel(db: Session) -> list[dict]:
     """각 단계별 고유 세션 수와 이전 단계 대비 이탈률을 계산합니다."""
-    sql = text("""
+    placeholders = ", ".join(f":s{i}" for i in range(len(FUNNEL_STEPS)))
+    sql = text(f"""
         SELECT event_name, COUNT(DISTINCT session_id) AS sessions
         FROM event_log
-        WHERE event_name IN :steps
+        WHERE event_name IN ({placeholders})
         GROUP BY event_name
     """)
-    rows = db.execute(sql, {"steps": tuple(FUNNEL_STEPS)}).mappings().all()
+    params = {f"s{i}": step for i, step in enumerate(FUNNEL_STEPS)}
+    rows = db.execute(sql, params).mappings().all()
     counts = {row["event_name"]: int(row["sessions"]) for row in rows}
 
     result = []
