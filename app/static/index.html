@@ -27,6 +27,11 @@
             <div class="label">📊 퍼널 지표 (이탈 임계값: 10분)</div>
             <div id="debug-metrics">로딩 중...</div>
         </div>
+
+        <div class="debug-section">
+            <div class="label">🔍 단계별 이탈 분석</div>
+            <div id="debug-step-funnel">로딩 중...</div>
+        </div>
     </div>
 
     <script src="/js/common.js"></script>
@@ -80,6 +85,7 @@
 
         async function loadMetrics() {
             const el = document.getElementById('debug-metrics');
+            const stepEl = document.getElementById('debug-step-funnel');
             try {
                 const res = await fetch('/api/debug/metrics');
                 const d = await res.json();
@@ -109,6 +115,30 @@
                         유지율: <span class="value">${ret.retention_rate_percent}%</span>
                     </div>
                 `;
+
+                // 단계별 이탈 분석
+                const steps = d.step_funnel || [];
+                if (steps.length === 0) {
+                    stepEl.innerHTML = '<span style="color:#6c7086">데이터 없음</span>';
+                    return;
+                }
+                const maxSessions = steps[0].sessions || 1;
+                stepEl.innerHTML = steps.map((s, i) => {
+                    const barWidth = Math.max(2, Math.round((s.sessions / maxSessions) * 100));
+                    const dropPct = (s.drop_rate * 100).toFixed(1);
+                    const dropColor = s.drop_rate > 0.3 ? '#f38ba8' : s.drop_rate > 0.1 ? '#fab387' : '#a6e3a1';
+                    const arrow = i > 0 ? `<span style="color:${dropColor}">↓ ${dropPct}% 이탈</span><br>` : '';
+                    return `
+                        ${arrow}
+                        <div style="margin:3px 0;display:flex;align-items:center;gap:8px">
+                            <span style="min-width:80px;font-size:11px">${s.label}</span>
+                            <div style="background:#45475a;border-radius:4px;flex:1;height:14px;overflow:hidden">
+                                <div style="background:#89b4fa;width:${barWidth}%;height:100%;border-radius:4px"></div>
+                            </div>
+                            <span class="value" style="min-width:30px;text-align:right">${s.sessions}</span>
+                        </div>
+                    `;
+                }).join('');
             } catch (e) {
                 el.innerHTML = '<span style="color:#f38ba8">API 연결 실패: ' + e.message + '</span>';
             }

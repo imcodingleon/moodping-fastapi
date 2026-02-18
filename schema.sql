@@ -51,7 +51,7 @@ CREATE TABLE IF NOT EXISTS event_log
     anon_id     VARCHAR(100) NULL     COMMENT '비로그인 사용자 익명 ID',
     event_name  VARCHAR(50)  NOT NULL COMMENT '이벤트 이름',
     occurred_at DATETIME     NOT NULL COMMENT '이벤트 발생 일시',
-    metadata    JSON         NULL     COMMENT '이벤트 추가 데이터',
+    extra_data  JSON         NULL     COMMENT '이벤트 추가 데이터',
     PRIMARY KEY (id),
     UNIQUE KEY uk_event_id (event_id),
     INDEX idx_event_log_session_id (session_id),

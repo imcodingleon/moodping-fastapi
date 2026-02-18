@@ -14,7 +14,7 @@ def get_llm_client() -> BaseLLMClient:
 
     .env 설정:
         LLM_PROVIDER=openai   → OpenAIClient  (gpt-4.1-mini)
-        LLM_PROVIDER=gemini   → GeminiClient  (gemini-2.5-flash)
+        LLM_PROVIDER=gemini   → GeminiClient  (gemini-3-flash-preview)
         LLM_PROVIDER=claude   → ClaudeClient  (claude-haiku-4-5-20251001)
     """
     provider = get_settings().llm_provider.lower().strip()

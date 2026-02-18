@@ -48,19 +48,20 @@ def get_recent_records(db: Session) -> list[dict]:
 
 
 def get_metrics(db: Session) -> dict:
-    """퍼널 지표 + 7일 리텐션을 반환합니다."""
+    """퍼널 지표 + 단계별 이탈 + 7일 리텐션을 반환합니다."""
     return {
         "drop_threshold_minutes": DROP_THRESHOLD_MINUTES,
         "funnel": {
             "record_funnel":   _record_funnel(db),
             "analysis_funnel": _analysis_funnel(db),
         },
+        "step_funnel": _step_funnel(db),
         "retention": _retention(db),
     }
 
 
 def _record_funnel(db: Session) -> dict:
-    """[기록 퍼널] record_start_click → record_complete (10분 임계값)"""
+    """[기록 퍼널] record_screen_view → record_complete (10분 임계값)"""
     sql = text("""
         SELECT
             COUNT(DISTINCT s.session_id)                           AS record_start_count,
@@ -83,7 +84,7 @@ def _record_funnel(db: Session) -> dict:
             ON  s.session_id  = c.session_id
             AND c.event_name  = 'record_complete'
             AND TIMESTAMPDIFF(MINUTE, s.occurred_at, c.occurred_at) BETWEEN 0 AND :threshold
-        WHERE s.event_name = 'record_start_click'
+        WHERE s.event_name = 'record_screen_view'
     """)
     row = db.execute(sql, {"threshold": DROP_THRESHOLD_MINUTES}).mappings().first()
     return _safe_funnel_row(row, "record_start_count", "record_complete_count",
@@ -164,6 +165,52 @@ def _retention(db: Session) -> dict:
         "retention_rate_percent": float(row["retention_rate_percent"] or 0.0),
         "retention_window_days":  RETENTION_DAYS,
     }
+
+
+FUNNEL_STEPS = [
+    "record_screen_view",
+    "emoji_selected",
+    "intensity_selected",
+    "text_input_start",
+    "record_complete",
+    "analysis_view",
+    "feedback_confirmed",
+]
+
+STEP_LABELS = {
+    "record_screen_view": "페이지 진입",
+    "emoji_selected":     "이모지 선택",
+    "intensity_selected": "강도 선택",
+    "text_input_start":   "텍스트 입력",
+    "record_complete":    "기록 완료",
+    "analysis_view":      "분석 조회",
+    "feedback_confirmed": "확인 완료",
+}
+
+
+def _step_funnel(db: Session) -> list[dict]:
+    """각 단계별 고유 세션 수와 이전 단계 대비 이탈률을 계산합니다."""
+    sql = text("""
+        SELECT event_name, COUNT(DISTINCT session_id) AS sessions
+        FROM event_log
+        WHERE event_name IN :steps
+        GROUP BY event_name
+    """)
+    rows = db.execute(sql, {"steps": tuple(FUNNEL_STEPS)}).mappings().all()
+    counts = {row["event_name"]: int(row["sessions"]) for row in rows}
+
+    result = []
+    for i, step in enumerate(FUNNEL_STEPS):
+        current = counts.get(step, 0)
+        prev = counts.get(FUNNEL_STEPS[i - 1], 0) if i > 0 else current
+        drop_rate = round(1.0 - current / prev, 4) if prev > 0 else 0.0
+        result.append({
+            "step": step,
+            "label": STEP_LABELS[step],
+            "sessions": current,
+            "drop_rate": drop_rate,
+        })
+    return result
 
 
 def _safe_funnel_row(row, k0: str, k1: str, k2: str, k3: str) -> dict:

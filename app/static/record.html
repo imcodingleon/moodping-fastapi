@@ -16,32 +16,40 @@
         <section id="section-emoji" class="active-section">
             <h3>어떤 감정인가요?</h3>
             <div class="emoji-grid">
-                <div class="emoji-btn" data-emoji="😊"><span>기쁨</span></div>
-                <div class="emoji-btn" data-emoji="😢"><span>슬픔</span></div>
-                <div class="emoji-btn" data-emoji="😡"><span>분노</span></div>
-                <div class="emoji-btn" data-emoji="😰"><span>불안</span></div>
-                <div class="emoji-btn" data-emoji="😌"><span>평온</span></div>
-                <div class="emoji-btn" data-emoji="😐"><span>무감각</span></div>
+                <div class="emoji-btn" data-label="happy"     title="기쁨">😊</div>
+                <div class="emoji-btn" data-label="excited"   title="신남">😄</div>
+                <div class="emoji-btn" data-label="thrilled"  title="설렘">😍</div>
+                <div class="emoji-btn" data-label="love"      title="사랑">🥰</div>
+                <div class="emoji-btn" data-label="confident" title="자신감">😎</div>
+                <div class="emoji-btn" data-label="calm"      title="평온">😌</div>
+                <div class="emoji-btn" data-label="numb"      title="무감각">😐</div>
+                <div class="emoji-btn" data-label="tired"     title="피곤">😴</div>
+                <div class="emoji-btn" data-label="gloomy"    title="우울">😔</div>
+                <div class="emoji-btn" data-label="sad"       title="슬픔">😢</div>
+                <div class="emoji-btn" data-label="tearful"   title="눈물">😭</div>
+                <div class="emoji-btn" data-label="annoyed"   title="짜증">😤</div>
+                <div class="emoji-btn" data-label="angry"     title="분노">😡</div>
+                <div class="emoji-btn" data-label="anxious"   title="불안">😰</div>
+                <div class="emoji-btn" data-label="scared"    title="두려움">😨</div>
             </div>
         </section>
 
-        <!-- Section 2: 강도 선택 (0~10) -->
+        <!-- Section 2: 강도 선택 (슬라이더) -->
         <section id="section-intensity" class="disabled-section">
             <h3>얼마나 강하게 느껴지나요?</h3>
-            <p style="font-size:12px;color:#999;margin-top:-8px">0(전혀 없음) ~ 10(매우 강함)</p>
-            <div class="intensity-options">
-                <div class="intensity-btn" data-value="0">0</div>
-                <div class="intensity-btn" data-value="1">1</div>
-                <div class="intensity-btn" data-value="2">2</div>
-                <div class="intensity-btn" data-value="3">3</div>
-                <div class="intensity-btn" data-value="4">4</div>
-                <div class="intensity-btn" data-value="5">5</div>
-                <div class="intensity-btn" data-value="6">6</div>
-                <div class="intensity-btn" data-value="7">7</div>
-                <div class="intensity-btn" data-value="8">8</div>
-                <div class="intensity-btn" data-value="9">9</div>
-                <div class="intensity-btn" data-value="10">10</div>
+            <div class="slider-wrapper">
+                <div class="slider-labels">
+                    <span>전혀 없음</span>
+                    <span id="slider-value-display" class="slider-value">5</span>
+                    <span>매우 강함</span>
+                </div>
+                <input type="range" id="intensity-slider" min="0" max="10" value="5" step="1">
+                <div class="slider-ticks">
+                    <span>0</span><span>1</span><span>2</span><span>3</span><span>4</span>
+                    <span>5</span><span>6</span><span>7</span><span>8</span><span>9</span><span>10</span>
+                </div>
             </div>
+            <button id="intensity-confirm-btn" class="btn-intensity-confirm">이 강도로 선택</button>
         </section>
 
         <!-- Section 3: 메모 & 저장 -->

@@ -39,7 +39,7 @@ function getSessionId() {
  * 이벤트 로그 전송 (POST /api/events)
  * event_id는 매 호출마다 새로운 UUID 생성 → 중복 저장 방지
  */
-async function logEvent(eventName, metadata = {}) {
+async function logEvent(eventName, extraData = {}) {
     const anonId = getAnonId();
     const sessionId = getSessionId();
 
@@ -53,7 +53,7 @@ async function logEvent(eventName, metadata = {}) {
                 user_id: null,
                 anon_id: anonId,
                 event_name: eventName,
-                metadata: metadata
+                extra_data: extraData
             })
         });
     } catch (error) {

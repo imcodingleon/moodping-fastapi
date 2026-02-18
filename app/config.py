@@ -8,7 +8,7 @@ class Settings(BaseSettings):
 
     # 모델명 (환경변수로 재정의 가능)
     openai_model: str = "gpt-4.1-mini"
-    gemini_model: str = "gemini-2.5-flash"
+    gemini_model: str = "gemini-3-flash-preview"
     claude_model: str = "claude-haiku-4-5-20251001"
 
     # API 키
