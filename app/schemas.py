@@ -39,7 +39,7 @@ class EventLogRequest(BaseModel):
     user_id: str | None = None
     anon_id: str | None = None
     event_name: str = Field(..., min_length=1)
-    metadata: dict[str, Any] | None = None
+    extra_data: dict[str, Any] | None = None
 
 
 # ── anon_id 연동 ────────────────────────────────────────────

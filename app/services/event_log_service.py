@@ -16,7 +16,7 @@ def save(request: EventLogRequest, db: Session) -> None:
         anon_id=request.anon_id,
         event_name=request.event_name,
         occurred_at=datetime.now(),
-        metadata=request.metadata,
+        extra_data=request.extra_data,
     )
     db.add(log)
     db.commit()
